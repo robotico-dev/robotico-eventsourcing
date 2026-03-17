@@ -1,0 +1,46 @@
+= Robotico.EventSourcing — Design
+:toc: left
+:toclevels: 2
+:sectnums:
+:icons: font
+
+This document explains event sourcing and Robotico.EventSourcing: event store semantics, stream identity, ordering, and integration with other Robotico packages.
+
+== Event sourcing
+
+*Event sourcing* stores the sequence of domain events that describe what happened, rather than only the current state. The current state is derived by *folding* (applying) events in order. Benefits: full history, replay, and temporal queries.
+
+== API contract
+
+* *IEventStore<TId, TEvent>*:
+** `AppendAsync(TId streamId, IEnumerable<TEvent> events, CancellationToken)` → Result. Appends events to the stream for the given id. Events are stored in order; implementations typically assign a version or position per event.
+** `ReadAsync(TId streamId, CancellationToken)` → Result<IReadOnlyList<TEvent>>. Reads all events for the stream in order. Missing stream: implementations may return an empty list or a Failed result; document the chosen behavior.
+
+Implementations must reject null streamId or null events (documented; use ArgumentNullException.ThrowIfNull in implementations).
+
+== Architecture
+
+The event store (IEventStore) is the source of truth; aggregates load events via ReadAsync, fold them into state, and append new events via AppendAsync. Snapshots (e.g. via Robotico.Repository) avoid replaying full streams. Domain events can be dispatched (Robotico.Events) after appending.
+
+[source,mermaid]
+----
+flowchart LR
+  A[Aggregate] --> ES[IEventStore]
+  ES --> Append[AppendAsync]
+  ES --> Read[ReadAsync]
+  A --> Snapshot[Robotico.Repository]
+  A --> Ev[Robotico.Events]
+----
+
+One stream per aggregate instance (TId); ordering within a stream is guaranteed. Use Robotico.Domain (IEntity) for aggregate roots that produce and fold events.
+
+== Stream identity
+
+*TId* is the stream or aggregate id. One stream per aggregate instance is common; TEvent is the event type (interface or base class). Ordering within a stream is guaranteed; ordering across streams is implementation-defined.
+
+== Related packages
+
+* *Robotico.Domain* — Use IEntity<TId> or Entity<TId> for aggregate roots that produce and fold events.
+* *Robotico.Events* — After appending to the store, dispatch domain events via IEventDispatcher for real-time subscribers.
+* *Robotico.Repository* — Persist snapshots (current state at a version) to avoid replaying the full stream when loading an aggregate.
+* *Robotico.Result* — All async methods return Result; use for append/read failures (e.g. concurrency, storage errors).

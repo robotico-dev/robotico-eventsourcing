@@ -20,6 +20,7 @@
     <Copyright>Copyright © Robotico</Copyright>
     <RepositoryType>git</RepositoryType>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisMode>All</AnalysisMode>
     <PackageId>Robotico.EventSourcing</PackageId>
     <Title>Robotico.EventSourcing</Title>
     <Description>Event sourcing: event store abstraction, aggregates that fold events. Result-based. Depends on Robotico.Result.</Description>
